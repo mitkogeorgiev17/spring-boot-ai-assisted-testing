@@ -1,87 +1,110 @@
 # cc-agents
 
-`cc-agents` is a portable `.claude/` toolkit of specialized Claude Code
-subagents and pattern docs for building **full-stack Spring Boot + React**
-projects with consistent architecture, testing, and code quality.
+Portable, agent-tool-agnostic toolkit of specialized AI agent configs and
+pattern docs for building **full-stack Spring Boot + React** projects with
+consistent architecture, testing, and code quality.
 
-> A fully agentic multi-agent dev suite — backend, frontend, UX/UI design, and
-> architecture. Work is done by deploying subagents, not interactive commands.
+Originally a Claude Code subagent suite, now also packaged for
+**JetBrains Junie** (CLI and IDE plugin). Each tool gets its own self-contained
+folder you can drop into a project.
 
-## What it is
+## Repository layout
 
-Drop `cc-agents` into any Spring Boot (and/or React) project and you get:
+```
+README.md                          this file
+claude/                            Claude Code edition
+├── CLAUDE.md                      orchestrator: task handling + routing
+└── .claude/
+    ├── agents/                    architect, backend-developer,
+    │                              frontend-developer, ux-ui-designer
+    └── docs/                      testing + SonarQube single source of truth
+junie-cli/                         JetBrains Junie — CLI edition
+└── .junie/
+    ├── guidelines.md              backend engineer playbook
+    └── docs/                      testing + SonarQube single source of truth
+junie-plugin/                      JetBrains Junie — IDE plugin edition
+└── .junie/
+    ├── guidelines.md              backend engineer playbook
+    └── docs/                      testing + SonarQube single source of truth
+```
 
-- **Four specialized subagents** that build code following strict, documented
-  conventions.
-- **An orchestrator (`CLAUDE.md`)** that routes your task to the right subagent
-  and enforces a consistent task-handling flow.
-- **Pattern docs** that are the single source of truth for how tests are
-  written and how SonarQube issues are resolved.
+## What each folder contains
 
-## Subagents
+### `claude/` — Claude Code
 
-| Subagent | Owns | Output |
-|---|---|---|
-| `architect` | System design, ADRs, module boundaries, cross-cutting concerns (security, observability, caching, error handling) | ADRs + design docs in `docs/`; delegates implementation |
-| `backend-developer` | Feature-based Spring Boot REST APIs **and their tests + SonarQube** | Production code + unit/integration/controller tests per `.claude/docs/*` |
-| `ux-ui-designer` | UX flows, wireframes, component states, design-token system, accessibility, UX copy | Markdown design specs in `docs/design/` (no code) |
-| `frontend-developer` | React + TypeScript implementation of design specs | Feature code, hooks, services, Tailwind/`cva`/Radix UI |
+Full multi-agent dev suite. Work is done by deploying subagents, not
+interactive commands.
+
+- **`CLAUDE.md`** — orchestrator that routes tasks to the right subagent
+  (architect, backend-developer, frontend-developer, ux-ui-designer) and
+  enforces a consistent task-handling flow.
+- **`.claude/agents/`** — four specialized subagents:
+  - `architect` — ADRs, system design, cross-cutting concerns
+  - `backend-developer` — Spring Boot feature work + tests + SonarQube
+  - `frontend-developer` — React + TypeScript implementation
+  - `ux-ui-designer` — UX flows, wireframes, design tokens (specs only, no code)
+- **`.claude/docs/`** — single source of truth for testing patterns and
+  SonarQube resolution. Referenced by `backend-developer` on every task.
 
 UI work chains: `ux-ui-designer` writes the spec → `frontend-developer`
 implements it. Complex/cross-cutting work enters via `architect` first.
 
+**Use it:** copy `claude/CLAUDE.md` and `claude/.claude/` into your project
+root, then open it in Claude Code.
+
+### `junie-cli/` — JetBrains Junie (CLI)
+
+Junie edition of the **backend engineer playbook** only — no orchestrator, no
+frontend/UX agents. Same Spring Boot conventions, testing patterns, and
+SonarQube standards, adapted to Junie's single-agent model.
+
+- **`.junie/guidelines.md`** — backend engineer playbook (Junie auto-loads it
+  as project guidelines).
+- **`.junie/docs/`** — same five testing/SonarQube docs as the Claude edition.
+
+**Use it:** copy `junie-cli/.junie/` into your project root, then run Junie CLI
+from that project.
+
+### `junie-plugin/` — JetBrains Junie (IDE plugin)
+
+Same content as `junie-cli/`, packaged as a separate drop so the two can evolve
+independently (e.g. IDE-aware additions for the plugin edition later).
+
+**Use it:** copy `junie-plugin/.junie/` into your project root, then use the
+Junie plugin inside IntelliJ-family IDEs.
+
 ## Pattern docs (single source of truth)
+
+Identical content lives in each tool's docs folder so each edition is
+self-contained:
 
 | File | Purpose |
 |---|---|
-| `.claude/docs/INITIAL_TEST_PREQUISITES.md` | Test infrastructure setup |
-| `.claude/docs/UNIT_TESTING.md` | Service-isolation unit-test patterns |
-| `.claude/docs/INTEGRATION_TESTING.md` | HTTP + DB + WireMock integration patterns |
-| `.claude/docs/CONTROLLER_TESTING.md` | Web-layer validation-test patterns |
-| `.claude/docs/SONARQUBE.md` | SonarQube resolution standards |
+| `INITIAL_TEST_PREQUISITES.md` | Test infrastructure setup |
+| `UNIT_TESTING.md` | Service-isolation unit-test patterns |
+| `INTEGRATION_TESTING.md` | HTTP + DB + WireMock integration patterns |
+| `CONTROLLER_TESTING.md` | Web-layer validation-test patterns |
+| `SONARQUBE.md` | SonarQube resolution standards |
 
-`backend-developer` reads these directly. They are never duplicated into agent
-files.
+These docs are never duplicated into the agent/guidelines file — the playbooks
+reference them by path.
 
-## How to use
+## Choosing an edition
 
-1. Copy the `.claude/` folder **and** `CLAUDE.md` into your project root.
-2. Open the project in Claude Code.
-3. Describe your task normally — `CLAUDE.md` routes it to the right subagent,
-   or invoke a subagent explicitly.
-4. For new UI: ask for a design first (`ux-ui-designer`), then implementation
-   (`frontend-developer`).
-5. For anything cross-cutting: start with `architect`.
-
-## Repository structure
-
-```
-CLAUDE.md                         orchestrator: task handling + routing
-README.md                         this file
-.claude/
-├── agents/
-│   ├── architect.md
-│   ├── backend-developer.md
-│   ├── frontend-developer.md
-│   └── ux-ui-designer.md
-└── docs/
-    ├── INITIAL_TEST_PREQUISITES.md
-    ├── UNIT_TESTING.md
-    ├── INTEGRATION_TESTING.md
-    ├── CONTROLLER_TESTING.md
-    └── SONARQUBE.md
-```
+| You use | Drop in |
+|---|---|
+| Claude Code (CLI or IDE) | `claude/` |
+| JetBrains Junie CLI | `junie-cli/.junie/` |
+| JetBrains Junie IDE plugin | `junie-plugin/.junie/` |
 
 ## Renaming the repository
 
-The project identity is now `cc-agents`. Renaming the **GitHub remote** and the
+The project identity is `cc-agents`. Renaming the **GitHub remote** and the
 **on-disk directory** is a manual step (it can't be done safely from inside a
 git worktree):
 
 ```
-# on GitHub: Settings → rename repo to cc-agents, then locally:
-git remote set-url origin <new-cc-agents-url>
-# optionally rename the working directory to cc-agents
+# on GitHub: Settings → rename repo, then locally:
+git remote set-url origin <new-url>
+# optionally rename the working directory
 ```
-
-All in-repo references already use the `cc-agents` name.
