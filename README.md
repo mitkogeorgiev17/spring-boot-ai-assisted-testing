@@ -1,101 +1,88 @@
 # cc-agents
 
-Portable, agent-tool-agnostic toolkit of specialized AI agent configs and
-pattern docs for building **full-stack Spring Boot + React** projects with
-consistent architecture, testing, and code quality.
-
-Originally a Claude Code subagent suite, now also packaged for
-**JetBrains Junie** (CLI and IDE plugin). Each tool gets its own self-contained
-folder you can drop into a project.
+Claude Code agent suite for building **full-stack Spring Boot + React** projects
+with consistent architecture, testing, code quality, and workflow.
 
 ## Repository layout
 
 ```
 README.md                          this file
-claude/                            Claude Code edition
+claude-code/                       drop-in Claude Code setup
 ├── CLAUDE.md                      orchestrator: task handling + routing
 └── .claude/
     ├── agents/                    architect, backend-developer,
     │                              frontend-developer, ux-ui-designer
-    └── docs/                      testing + SonarQube single source of truth
-junie-cli/                         JetBrains Junie — CLI edition
-└── .junie/
-    ├── guidelines.md              backend engineer playbook
-    └── docs/                      testing + SonarQube single source of truth
-junie-plugin/                      JetBrains Junie — IDE plugin edition
-└── .junie/
-    ├── guidelines.md              backend engineer playbook
-    └── docs/                      testing + SonarQube single source of truth
+    └── docs/                      process, money, testing, SonarQube
 ```
 
-## What each folder contains
+**Use it:** copy `claude-code/CLAUDE.md` and `claude-code/.claude/` into your
+project root, then open it in Claude Code.
 
-### `claude/` — Claude Code
+## What's in it
 
-Full multi-agent dev suite. Work is done by deploying subagents, not
-interactive commands.
+Work is done by deploying subagents, not interactive commands.
 
-- **`CLAUDE.md`** — orchestrator that routes tasks to the right subagent
-  (architect, backend-developer, frontend-developer, ux-ui-designer) and
-  enforces a consistent task-handling flow.
+- **`CLAUDE.md`** — orchestrator that routes tasks to the right subagent and
+  enforces a consistent task-handling flow. Holds the project's
+  `Documentation mode` setting.
 - **`.claude/agents/`** — four specialized subagents:
-  - `architect` — ADRs, system design, cross-cutting concerns
+  - `architect` — design decisions, cross-cutting concerns, money designs
   - `backend-developer` — Spring Boot feature work + tests + SonarQube
   - `frontend-developer` — React + TypeScript implementation
   - `ux-ui-designer` — UX flows, wireframes, design tokens (specs only, no code)
-- **`.claude/docs/`** — single source of truth for testing patterns and
-  SonarQube resolution. Referenced by `backend-developer` on every task.
+- **`.claude/docs/`** — single source of truth. Nothing in it is duplicated into
+  the agent files; the playbooks reference it by path.
 
 UI work chains: `ux-ui-designer` writes the spec → `frontend-developer`
-implements it. Complex/cross-cutting work enters via `architect` first.
+implements it. Complex, cross-cutting, or money work enters via `architect`
+first.
 
-**Use it:** copy `claude/CLAUDE.md` and `claude/.claude/` into your project
-root, then open it in Claude Code.
-
-### `junie-cli/` — JetBrains Junie (CLI)
-
-Junie edition of the **backend engineer playbook** only — no orchestrator, no
-frontend/UX agents. Same Spring Boot conventions, testing patterns, and
-SonarQube standards, adapted to Junie's single-agent model.
-
-- **`.junie/guidelines.md`** — backend engineer playbook (Junie auto-loads it
-  as project guidelines).
-- **`.junie/docs/`** — same five testing/SonarQube docs as the Claude edition.
-
-**Use it:** copy `junie-cli/.junie/` into your project root, then run Junie CLI
-from that project.
-
-### `junie-plugin/` — JetBrains Junie (IDE plugin)
-
-Same content as `junie-cli/`, packaged as a separate drop so the two can evolve
-independently (e.g. IDE-aware additions for the plugin edition later).
-
-**Use it:** copy `junie-plugin/.junie/` into your project root, then use the
-Junie plugin inside IntelliJ-family IDEs.
-
-## Pattern docs (single source of truth)
-
-Identical content lives in each tool's docs folder so each edition is
-self-contained:
+## Docs (single source of truth)
 
 | File | Purpose |
 |---|---|
+| `WORKFLOW.md` | Planning gate, docs policy, git flow, build verification, comment policy |
+| `PAYMENTS.md` | Money handling, dependency failure matrices, payment testing |
 | `INITIAL_TEST_PREQUISITES.md` | Test infrastructure setup |
 | `UNIT_TESTING.md` | Service-isolation unit-test patterns |
 | `INTEGRATION_TESTING.md` | HTTP + DB + WireMock integration patterns |
 | `CONTROLLER_TESTING.md` | Web-layer validation-test patterns |
 | `SONARQUBE.md` | SonarQube resolution standards |
 
-These docs are never duplicated into the agent/guidelines file — the playbooks
-reference them by path.
+## How work runs
 
-## Choosing an edition
+**Plan first.** Every feature and rework is planned and approved before any code
+is written. The plan states its goal, its **blast radius** — callers, schema,
+outbound calls, schedulers, frontend consumers, sibling projects, all found by
+grepping rather than assumed — its approach, its risks, and its test plan.
 
-| You use | Drop in |
-|---|---|
-| Claude Code (CLI or IDE) | `claude/` |
-| JetBrains Junie CLI | `junie-cli/.junie/` |
-| JetBrains Junie IDE plugin | `junie-plugin/.junie/` |
+**Documentation is opt-in.** On the first task in a project you are asked once
+whether to leave a populated `docs/` folder behind for the next agent. The
+answer is recorded in `CLAUDE.md` and honored from then on. With docs off, ADRs
+and design specs are still produced — they are delivered in the response instead
+of written to disk.
+
+**Money gets its own rules.** Anything touching payments routes through
+`architect` and carries a dependency failure matrix: for every outbound call,
+what happens on decline, `4xx`, `5xx`, duplicate, malformed body, and — the one
+that matters — timeout. A test per row.
+
+**Git flow is fixed.** Pull `development`, cut `feature/<slug>` or
+`hotfix/<slug>` from it (never from `main`), commit in conventional-commit
+units, open a PR into `development`. The agent never merges, never force-pushes,
+and never pushes to `development` directly. **No `Co-Authored-By` trailer and no
+tool-attribution footer**, on commits or PRs.
+
+**Claims need evidence.** "Tests pass" means pasted `mvn verify` output. A local
+sibling dependency project (`commons` and friends) gets exactly **one**
+`mvn clean install` attempt — if it fails, that is reported and the run stops
+looking for a way around it.
+
+**Comments stay out of the code.** No comments in controllers, entities, DTOs,
+mappers, config, or components. Allowed: thin Javadoc on public service methods,
+one-line JSDoc on exported frontend service functions, grouped one-liners in
+`pom.xml`, Sonar suppression justifications, Given/When/Then in tests, and rare
+"why" lines where something genuinely non-obvious needs justifying.
 
 ## Renaming the repository
 

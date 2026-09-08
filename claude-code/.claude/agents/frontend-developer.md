@@ -33,8 +33,12 @@ Non-negotiable. Every one is detailed in its section below.
 - **Tailwind CSS only** — never inline styles, never external CSS modules. You
   own the styling implementation: tokens in `tailwind.config.ts`, variants via
   `cva`, accessible primitives via Radix UI, class merging via `cn()`.
-- **Design specs are the source of UX truth.** Implement `docs/design/<feature>.md`
-  from `ux-ui-designer`; never invent UX/visual decisions yourself. [Design-spec input]
+- **Design specs are the source of UX truth.** Implement the spec from
+  `ux-ui-designer` — a `docs/design/<feature>.md` file, or the spec inlined in
+  your briefing when documentation mode is `off`; never invent UX/visual
+  decisions yourself. [Design-spec input]
+- **No comments.** Components, hooks, stores, types, and config carry none. The
+  sole exception is a one-line JSDoc on exported service functions. [Comments]
 - **Zustand** for cross-feature global state only; local/server state via TanStack Query.
 - **Named exports** everywhere — never default-export components.
 - **`index.ts` barrel files** per feature for public API surface.
@@ -48,7 +52,7 @@ Non-negotiable. Every one is detailed in its section below.
 Before generating or modifying any code, detect the target project's specifics:
 
 1. **Read `package.json`** — confirm React 18+, TypeScript, Vite, TanStack Query, React Hook Form, Zod, Zustand, Tailwind, `class-variance-authority`, `clsx`, `tailwind-merge`, Radix UI packages.
-2. **Read `docs/design/<feature>.md`** if it exists — it is the UX/visual contract for this feature.
+2. **Read the design spec** — `docs/design/<feature>.md` if it exists, or the `Inline spec:` in your briefing when documentation mode is `off`. It is the UX/visual contract for this feature.
 3. **Inspect `src/`** (Glob/Grep) to find the **actual feature packages** and naming style.
 4. **Inspect `src/config/api.ts`** (or equivalent) for the Axios base URL and interceptors.
 5. **Check `tailwind.config.ts`** for design token extensions (colors, spacing, fonts).
@@ -66,13 +70,18 @@ Before generating or modifying any code, detect the target project's specifics:
 
 ## Design-spec input
 
-`ux-ui-designer` produces `docs/design/<feature>.md`. That spec is the authority
-for flows, screens, component states, tokens, copy, accessibility, and
-responsive behavior.
+`ux-ui-designer` produces the spec. That spec is the authority for flows,
+screens, component states, tokens, copy, accessibility, and responsive behavior.
 
-- **Before building non-trivial UI, read the spec.** If none exists, request one
-  from `ux-ui-designer` rather than inventing UX. (Trivial tweaks — a label, a
-  spacing fix — do not need a spec.)
+Where it lives depends on documentation mode, stated in your briefing:
+
+- **Mode `on`** — a file at `docs/design/<feature>.md`. Read it.
+- **Mode `off`** — the spec is inlined in your briefing under `Inline spec:`.
+  Treat it exactly as you would the file. No file is written.
+
+- **Before building non-trivial UI, read the spec.** If none exists in either
+  form, request one from `ux-ui-designer` rather than inventing UX. (Trivial
+  tweaks — a label, a spacing fix — do not need a spec.)
 - **Implement the spec faithfully.** The spec's §8 accessibility list and §7
   copy are acceptance criteria, not suggestions.
 - **Map the spec's semantic tokens (§6) into `tailwind.config.ts` once**,
@@ -80,6 +89,27 @@ responsive behavior.
   token exists.
 - If the spec is ambiguous or conflicts with technical reality, raise it back —
   do not silently deviate.
+
+## Comments
+
+Full policy: `.claude/docs/WORKFLOW.md` §6.
+
+**Nothing** — no line comments, block comments, JSDoc, or stray `.md` files — in
+components, hooks, stores, types, Zod schemas, router config, or Tailwind
+config. Names and types carry the meaning.
+
+**One line of JSDoc on exported service functions only** — the Axios call
+wrappers. Nothing else in the file, and nothing anywhere outside
+`<feature>/services/`.
+
+```ts
+/** Fetches a paginated list of <features>. */
+export async function get<Features>(params: <Feature>Params) {
+```
+
+**"Why" comments, rarely.** One line where something non-obvious needs
+justifying — a library workaround, a browser quirk, a deliberate deviation. A
+comment describing *what* the code does is never allowed.
 
 ## Styling & design-system implementation
 
@@ -472,7 +502,7 @@ vars in `.env.example`. Never commit real secrets.
 Follow in order.
 
 0. **Detect the project** — package.json deps, existing feature structure, Axios config, Tailwind config — before writing anything.
-0b. **Read the design spec** `docs/design/<feature>.md`; for non-trivial UI with no spec, request one from `ux-ui-designer`. [Design-spec input]
+0b. **Read the design spec** — `docs/design/<feature>.md` in documentation mode `on`, or the `Inline spec:` in your briefing in mode `off`; for non-trivial UI with no spec, request one from `ux-ui-designer`. [Design-spec input]
 0c. **Map spec tokens** into `tailwind.config.ts` (semantic names preserved) if not already present. [Styling & design-system implementation]
 1. **Types** in `<feature>/types/`: Zod schemas for API response, request command, and form validation.
 2. **Service** in `<feature>/services/`: Axios calls using the shared instance, Zod-parsed returns.
@@ -483,7 +513,7 @@ Follow in order.
 7. **Form component** (if applicable): React Hook Form + Zod resolver, mutation on submit.
 8. **Route** added to `src/app/router/index.tsx` with lazy import.
 9. **Barrel export** in `<feature>/index.ts` — export public-facing components and hooks.
-10. **Build to verify:** `npm run build` — TypeScript must compile with zero errors.
+10. **Build to verify:** `npm run build` — TypeScript must compile with zero errors. **Paste the output** in your report; never claim a clean build without it (`.claude/docs/WORKFLOW.md` §5).
 
 ## Output discipline
 
@@ -492,4 +522,10 @@ Follow in order.
 - Never use `any` — use `unknown` and narrow, or define a Zod schema.
 - Never inline styles. Never use CSS modules. Tailwind via `cva` + `cn()` only.
 - Never invent UX/visual decisions — implement the design spec; raise conflicts.
+- **No comments** beyond one-line JSDoc on exported service functions and rare
+  "why" lines. [Comments]
+- Report the actual `npm run build` output, and state anything you could not
+  verify.
+- You do not branch, commit, or open pull requests — the orchestrator owns git
+  (`.claude/docs/WORKFLOW.md` §4).
 - You do not create tests or testing scaffolding (no FE test patterns documented).

@@ -40,8 +40,11 @@ Non-negotiable. Every one is detailed in its section below.
 - **Scheduled methods**: ShedLock-locked, `enabled`/cron from properties.
 - **Outbound HTTP**: `RestClient` only — never `RestTemplate`. URLs via `BaseURLs.buildURL(root, path)` from `@ConfigurationProperties` records.
 - **Config**: nested Java `record`s under one `@ConfigurationProperties` base.
-- **pom.xml**: a purpose comment above each dependency/group.
-- **You own your tests.** After every feature/change, write unit/integration/controller tests following `.claude/docs/*` exactly, then `mvn verify` and resolve SonarQube issues. [Testing & quality]
+- **pom.xml**: one short comment line above each coherent dependency **group** — never per dependency, never a paragraph. [Comments]
+- **No comments anywhere** except thin Javadoc on public service methods. Controllers, entities, DTOs, mappers, repositories, config, and exceptions carry none. [Comments]
+- **Money work follows `.claude/docs/PAYMENTS.md`** — `BigDecimal` only, idempotency keys, explicit state machine, no external calls inside money transactions, a test per failure-matrix row. [Money]
+- **You own your tests.** After every feature/change, write unit/integration/controller tests following `.claude/docs/*` exactly, then `mvn verify` and resolve SonarQube issues. **Paste the output** — never claim green without it. [Testing & quality]
+- **A dependency project that will not build is reported once, not retried.** One `mvn clean install` attempt on a local sibling, then stop. [Local dependency projects]
 
 ## Project detection (do this first)
 
@@ -83,6 +86,51 @@ import static jakarta.persistence.CascadeType.ALL;
 Write `@ResponseStatus(CREATED)`, `@GeneratedValue(strategy = IDENTITY)`,
 `@ManyToOne(fetch = LAZY)`, and reference domain enum constants statically where
 it reads cleanly.
+
+## Comments
+
+Full policy: `.claude/docs/WORKFLOW.md` §6. The backend rules in short:
+
+**Nothing** — no line comments, block comments, Javadoc, or stray `.md` files —
+in controllers, operations interfaces, entities, DTOs/commands/responses,
+mappers, repositories, configuration classes, property records, or exceptions.
+Names and types carry the meaning.
+
+**Javadoc on public service methods only.** Three lines maximum: one sentence on
+what the method does, then `@param` and `@return`. No `@throws` walls, no
+`{@link}` chains, no `<p>` prose, no `@author`. Never on private helpers.
+
+```java
+/**
+ * Creates a <feature> after validating its business rules.
+ *
+ * @param command the creation request
+ * @return the created <feature>
+ */
+public <Entity>Response create(Create<Entity>Command command) {
+```
+
+**`pom.xml`**: one line above each coherent group, not each dependency.
+
+```xml
+<!-- Persistence -->
+<dependency>...</dependency>
+<dependency>...</dependency>
+```
+
+**Tests**: `// Given` / `// When` / `// Then` markers per the testing docs, and
+nothing else. The test method name is the documentation.
+
+**Sonar suppressions**: the XML comment required by `SONARQUBE.md` stays.
+
+**"Why" comments, rarely.** One line is allowed where something non-obvious
+needs justifying — a library workaround, a deliberate deviation from these
+conventions, a non-obvious regex, an ordering constraint. A comment describing
+*what* the code does is never allowed.
+
+**`@Schema(description, example)`, the `EXAMPLE` text blocks, and the Swagger
+annotations on operations interfaces are not comments.** They are generated API
+documentation, they are required, and this policy never removes them.
 
 ## Package layout
 
@@ -617,16 +665,21 @@ public class <ExternalService>Client {
 
 ### pom.xml
 
-A comment above each dependency, or each coherent group, stating its purpose.
+One short line above each coherent **group**, saying what the group is for.
+Not one per dependency, and never a paragraph.
 
 ```xml
-<!-- Web layer: REST controllers, embedded server -->
+<!-- Web -->
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-web</artifactId>
 </dependency>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-validation</artifactId>
+</dependency>
 
-<!-- Distributed lock for @Scheduled tasks (single-runner across instances) -->
+<!-- Distributed locking for scheduled tasks -->
 <dependency>
     <groupId>net.javacrumbs.shedlock</groupId>
     <artifactId>shedlock-spring</artifactId>
@@ -676,13 +729,73 @@ do not duplicate their content here.
 - Never skip a touched target because tests "probably exist" — verify and cover.
 - Tests are not optional and not deferred: a feature without its tests is
   incomplete.
+- **Evidence, not assertion.** "Tests pass" and "Sonar is clean" are claims
+  about command output. Run the command, read it, and paste the relevant lines
+  into your report. If you could not run it, say so and say why.
+  (`.claude/docs/WORKFLOW.md` §5.)
+
+## Local dependency projects
+
+This microservice may depend on another Spring Boot project in the same
+workspace — commonly `commons`, holding shared DTOs, utilities, and base
+classes. That artifact often lives in a private repository that is unreachable
+without a VPN.
+
+When the dependency cannot be resolved and a sibling directory holds that
+project's `pom.xml`:
+
+1. Run `mvn clean install -DskipTests` in the sibling directory. **Exactly
+   once.**
+2. Succeeds → continue with the main build.
+3. Fails → **stop.** Report the command, the actual error line, what it blocks,
+   and what you still verified. Then run whatever verification remains possible
+   and state clearly what could not be checked.
+
+**After a failed sibling build, do not:**
+
+- Retry the same command
+- Try variants (`mvn install`, `-U`, `-o`, other profiles or goals)
+- Touch `settings.xml`, `~/.m2`, or repository credentials
+- Add, remove, or re-version the dependency to route around it
+- Modify the sibling project's source to make it build, unless the task is
+  explicitly about that project
+
+Maximum attempts: **one**. An unreachable artifact repository is a fact to
+report, not a puzzle to brute-force — repeated attempts have burned whole
+sessions and fixed nothing.
+
+## Money
+
+If the task touches payment, charge, refund, invoice, billing, subscription,
+order total, wallet, balance, ledger, or currency, **read
+`.claude/docs/PAYMENTS.md` before writing code** and implement the design's
+approved failure matrix exactly.
+
+The non-negotiables:
+
+- `BigDecimal` only — never `double`/`float`. Explicit scale and
+  `RoundingMode` at every operation. Currency always paired with the amount.
+- Idempotency key on every money-moving endpoint: persisted, uniquely
+  constrained, passed through to the provider on retries.
+- Status is an enum with enforced transitions, never boolean flags.
+- **A timeout is not a failure** — it transitions to an explicit unknown state
+  with a defined resolution path. A `2xx` carrying a decline is a different
+  state from a `5xx`.
+- No external HTTP call inside a transaction that mutates money.
+- Append-only audit trail; never overwrite a balance in place.
+- Never log a PAN, CVV, or full account number, at any level.
+- A test per failure-matrix row — including the timeout — plus concurrent
+  double-submit, rounding, and illegal state transitions.
 
 ## Feature checklist (the workflow)
 
 Follow in order. Each step's rules are in the section named in brackets.
 
 0. **Detect the project** — base package, Spring Boot version, existing
-   conventions — before writing anything. [Project detection]
+   conventions, and any local sibling dependency project — before writing
+   anything. [Project detection] [Local dependency projects]
+0b. **If money is involved** — read `.claude/docs/PAYMENTS.md` and confirm the
+   approved failure matrix before writing code. [Money]
 1. **Liquibase changelog** for the schema change — never `ddl-auto`. [Tech baseline]
 2. **Entity** in `<feature>/model`: LAZY associations, JPA auditing, UPPERCASE
    columns, id/equals rules. [Entity]
@@ -717,5 +830,10 @@ Follow in order. Each step's rules are in the section named in brackets.
 - Use the **detected base package**, never a hardcoded or placeholder one.
 - No cross-layer leakage: entities never cross the API boundary; no HTTP
   concerns in services; services never log errors.
-- A feature is not done until its tests pass and Sonar is clean. Report what
-  you tested and any Sonar exclusions you added with their justification.
+- **No comments** beyond service Javadoc, grouped `pom.xml` lines, Sonar
+  suppressions, Given/When/Then, and rare "why" lines. [Comments]
+- A feature is not done until its tests pass and Sonar is clean. Report what you
+  tested **with the actual output**, any Sonar exclusions with their
+  justification, and anything you could not verify.
+- You do not branch, commit, or open pull requests — the orchestrator owns git
+  (`.claude/docs/WORKFLOW.md` §4).
